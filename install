@@ -1,0 +1,15 @@
+#!/bin/sh -e
+
+# TODO: make this interactive rather than automatically installing stuff
+
+install() {
+  local cwd="$PWD"
+  mkdir -vp ~/.airstack
+  cd ~/.airstack
+  git clone https://github.com/airstack/bootstrap.git
+  cd bootstrap
+  cd $cwd
+  ~/.airstack/bootstrap/init
+}
+
+install
