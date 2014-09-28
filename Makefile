@@ -20,8 +20,6 @@ else
 	SHELL := /bin/sh
 endif
 
-# Name of current working dir parent; ex: 'bootstrap'
-PARENT_DIR := $(notdir $(patsubst %/,%,$(dir $(CURDIR))))
 
 AIRSTACK_ENV_DEVELOPMENT ?= development
 AIRSTACK_ENV_TEST ?= test
@@ -36,7 +34,8 @@ AIRSTACK_ENV_PRODUCTION ?= production
 AIRSTACK_DIR ?= .airstack
 
 # Name of Docker image to build; ex: airstack/core
-AIRSTACK_IMAGE_NAME ?= $(PARENT_DIR)
+# Defaults to current working dir's parent dir name
+AIRSTACK_IMAGE_NAME ?= $(notdir $(patsubst %/,%,$(dir $(CURDIR))))
 
 # Current build environment: ex: development, test, production
 AIRSTACK_ENV ?= $(AIRSTACK_ENV_DEVELOPMENT)
