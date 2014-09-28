@@ -310,7 +310,7 @@ test-production:
 # Convenience helper commands for managing docker
 ################################################################################
 
-repair: init
+repair:
 ifeq ($(PLATFORM),osx)
 	@printf "\n\
 	=====================\n\
