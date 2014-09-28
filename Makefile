@@ -3,42 +3,93 @@
 #
 # Set these at runtime to override the below defaults.
 # e.g.:
-# `make DOCKER_OPTS_CMD=/bin/bash console`
-# `make USERNAME=root DOCKER_OPTS_CMD=/bin/bash run`
-# `make AIRSTACK_IMAGE_TAG=debug build`
+# `make AIRSTACK_CMD=/bin/bash console`
+# `make AIRSTACK_USERNAME=root AIRSTACK_CMD=/bin/bash run`
+# `make AIRSTACK_IMAGE_TAG=1.2-debug build`
+# `make AIRSTACK_ENV=development build`
 #######################################
 
-SHELL = /bin/sh
-# Uncomment when debugging Makefile
-# SHELL = /bin/sh -xv
+DEBUG ?= false
+ifneq ($(DEBUG),false)
+	DEBUG := true
+endif
 
-#TOP_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-TOP_DIR := $(CURDIR)/
-CURR_DIR := $(notdir $(patsubst %/,%,$(dir $(TOP_DIR))))
-uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
-USERNAME := airstack
-USERDIR := $(USERNAME)
+ifeq ($(DEBUG),true)
+	SHELL := /bin/sh -xv
+else
+	SHELL := /bin/sh
+endif
 
-AIRSTACK_AIRSTACKIGNORE := .airstackignore
-AIRSTACK_TEMPLATES_FILES := Dockerfile.core Dockerfile.packages Dockerfile.packages.dev Dockerfile.services Dockerfile.debug Dockerfile.tests
-AIRSTACK_TEMPLATES_DIR := .airstack/templates
-AIRSTACK_CACHE_DIR := .airstack/cache
-AIRSTACK_IMAGE_REPO := airstack
-AIRSTACK_IMAGE_NAME := $(shell cat $(CURDIR)/env/AIRSTACK_IMAGE_NAME)
-AIRSTACK_IMAGE_TAG := latest
-AIRSTACK_IMAGE_FULLNAME := $(AIRSTACK_IMAGE_REPO)/$(AIRSTACK_IMAGE_NAME):$(AIRSTACK_IMAGE_TAG)
+# Name of current working dir parent; ex: 'bootstrap'
+PARENT_DIR := $(notdir $(patsubst %/,%,$(dir $(CURDIR))))
 
-DOCKER_OPTS_CMD := sh -c "{ /etc/runit/2 &}; chpst -u $(USERNAME) bash"
-DOCKER_OPTS_USER := --user $(USERNAME)
-DOCKER_OPTS_USER_CONSOLE := --user root
-DOCKER_OPTS_RUN := --detach
-DOCKER_OPTS_RUN_CONSOLE := --rm -it
-DOCKER_OPTS_BUILD := --rm
-DOCKER_OPTS_COMMON := --publish-all --workdir /home/$(USERDIR) -e HOME=$(USERDIR) $(AIRSTACK_IMAGE_FULLNAME)
-DOCKER_OPTS_LINUX := --volume $(CURR_DIR)/:/files/host/
-DOCKER_OPTS_OSX := --volume $(ROOTDIR)/:/files/host/
+AIRSTACK_ENV_DEVELOPMENT ?= development
+AIRSTACK_ENV_TEST ?= test
+AIRSTACK_ENV_PRODUCTION ?= production
 
-ifeq ($(uname_S),Darwin)
+
+################################################################################
+# COMMONLY OVERRIDDEN VARS
+################################################################################
+
+# Relative path to airstack dir; for cache, configs, etc.
+AIRSTACK_DIR ?= .airstack
+
+# Name of Docker image to build; ex: airstack/core
+AIRSTACK_IMAGE_NAME ?= $(PARENT_DIR)
+
+# Current build environment: ex: development, test, production
+AIRSTACK_ENV ?= $(AIRSTACK_ENV_DEVELOPMENT)
+
+# Docker image tag; ex: development
+AIRSTACK_IMAGE_TAG ?= $(AIRSTACK_ENV)
+
+# Build file templates located in AIRSTACK_TEMPLATES_DIR.
+# Concatenated together on build. Useful for customizing dev vs test vs prod builds.
+AIRSTACK_BUILD_TEMPLATES_PRODUCTION ?= Dockerfile.base Dockerfile.packages Dockerfile.services
+AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT ?= $(AIRSTACK_BUILD_TEMPLATES_PRODUCTION) Dockerfile.development
+AIRSTACK_BUILD_TEMPLATES_TEST ?= $(AIRSTACK_BUILD_TEMPLATES_PRODUCTION) Dockerfile.test
+
+AIRSTACK_BUILD_TEMPLATES ?= $(AIRSTACK_BUILD_TEMPLATES_$(AIRSTACK_ENV))
+
+
+################################################################################
+# CONFIG VARS
+################################################################################
+AIRSTACK_USERNAME ?= airstack
+AIRSTACK_USERDIR ?= $(AIRSTACK_USERNAME)
+
+AIRSTACK_TEMPLATES_DIR ?= $(AIRSTACK_DIR)/templates
+AIRSTACK_CACHE_DIR ?= $(AIRSTACK_DIR)/cache
+AIRSTACK_IGNOREFILE ?= $(AIRSTACK_DIR)/.airstackignore
+
+AIRSTACK_IMAGE_FULLNAME ?= $(AIRSTACK_IMAGE_NAME):$(AIRSTACK_IMAGE_TAG)
+
+AIRSTACK_RUN_MODE ?= multi
+AIRSTACK_CMD ?= sh -c '{ /etc/runit/2 $(AIRSTACK_RUN_MODE) &}'
+AIRSTACK_SHELL ?= chpst -u $(AIRSTACK_USERNAME) /bin/rbash
+AIRSTACK_CMD_CONSOLE ?= sh -c '{ /etc/runit/2 $(AIRSTACK_RUN_MODE) &}; $(AIRSTACK_SHELL)'
+
+AIRSTACK_BASE_IMAGE := debian:jessie
+
+DOCKER_OPTS_USER ?= --user $(AIRSTACK_USERNAME)
+DOCKER_OPTS_RUN ?= --detach
+DOCKER_OPTS_RUN_CONSOLE ?= --rm -it
+DOCKER_OPTS_BUILD ?= --rm
+DOCKER_OPTS_COMMON ?= --publish-all --workdir /home/$(AIRSTACK_USERDIR) -e HOME=$(AIRSTACK_USERDIR) $(AIRSTACK_IMAGE_FULLNAME)
+
+# TODO: remove auto mounting of host files; CLI handles mounting
+# DOCKER_OPTS_LINUX ?= --volume $(CURR_DIR)/:/files/host/
+# DOCKER_OPTS_OSX ?= --volume $(ROOTDIR)/:/files/host/
+
+# Replace / and \ and spaces with underscores
+IMAGE_TAG_FILENAME := $(shell echo $(AIRSTACK_IMAGE_TAG) | sed -e 's/[\/ \\]/_/g')
+
+# TODO: only expand var if first char is not a '/'
+AIRSTACK_CACHE_DIR := $(CURDIR)/$(AIRSTACK_CACHE_DIR)
+
+PLATFORM := $(shell [ $$(uname -s 2>/dev/null) = Darwin ] && echo osx || echo linux)
+ifeq ($(PLATFORM),osx)
 	OS_SPECIFIC_RUNOPTS := $(DOCKER_OPTS_OSX)
 else
 	OS_SPECIFIC_RUNOPTS := $(DOCKER_OPTS_LINUX)
@@ -73,12 +124,12 @@ bootstrap:
 
 init:
 	@echo init
-	# @~/.airstack/bootstrap/init
-	# empty template files
 	# TODO: move all file related tasks to non PHONY tasks; no need to test if files exists since that's what make does by default
-	$(foreach var,$(AIRSTACK_TEMPLATES_FILES),$(shell [ -e $(AIRSTACK_TEMPLATES_DIR)/$(var) ] || touch $(AIRSTACK_TEMPLATES_DIR)/$(var) ]))
-	@[ -d $(TOP_DIR)$(AIRSTACK_CACHE_DIR) ] || mkdir -vp $(TOP_DIR)$(AIRSTACK_CACHE_DIR)
-ifeq ($(uname_S),Darwin)
+	$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),$(shell [ -e $(AIRSTACK_TEMPLATES_DIR)/$(var) ] || touch $(AIRSTACK_TEMPLATES_DIR)/$(var) ]))
+	@[ -d $(AIRSTACK_CACHE_DIR) ] || mkdir -vp $(AIRSTACK_CACHE_DIR)
+	# TODO: add call to ~/.airstack/bootstrap/init to populate .airstackignore ???
+	# TODO: split boot2docker commands into separate init ???
+ifeq ($(PLATFORM),osx)
 ifneq ($(shell boot2docker status),running)
 	@boot2docker up
 endif
@@ -99,30 +150,42 @@ help:
 # Commands for building containers.
 ################################################################################
 
-build-all: build build-dev build-prod
+build-all: build-development build-test build-production
+
+build: build-development
+
+# Rebuild dev image without using the cache
+build-debug:
+	$(MAKE) DOCKER_OPTS_BUILD='--rm --no-cache' build-development
+
+build-dev: build-development
+build-development:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT)" build-image
+
+build-test:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_TEST)" build-image
+
+build-prod: build-production
+build-production:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_PRODUCTION)" build-image
+
+
+################################################################################
+# BUILD HELPERS
+################################################################################
 
 build-tarball:
-	tar -cvf $(AIRSTACK_CACHE_DIR)/$(AIRSTACK_IMAGE_NAME).$(AIRSTACK_IMAGE_TAG).tar -C $(TOP_DIR) -X $(AIRSTACK_AIRSTACKIGNORE) .
+	tar -cvf $(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar -C $(CURDIR) -X $(AIRSTACK_IGNOREFILE) .
 
 build-tarball-docker: build-tarball
-	> $(AIRSTACK_CACHE_DIR)/Dockerfile.$(AIRSTACK_IMAGE_TAG)
-	$(foreach var,$(AIRSTACK_TEMPLATES_FILES),cat $(AIRSTACK_TEMPLATES_DIR)/$(var) >> $(AIRSTACK_CACHE_DIR)/Dockerfile.$(AIRSTACK_IMAGE_TAG);)
-	ln -f $(AIRSTACK_CACHE_DIR)/Dockerfile.$(AIRSTACK_IMAGE_TAG) $(AIRSTACK_CACHE_DIR)/Dockerfile
-	tar -C $(TOP_DIR)/$(AIRSTACK_CACHE_DIR) --append --file=$(AIRSTACK_CACHE_DIR)/$(AIRSTACK_IMAGE_NAME).$(AIRSTACK_IMAGE_TAG).tar Dockerfile
+	> $(AIRSTACK_CACHE_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME)
+	$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),cat $(AIRSTACK_TEMPLATES_DIR)/$(var) >> $(AIRSTACK_CACHE_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME);)
+	tar -C $(AIRSTACK_CACHE_DIR) --append -s /Dockerfile.$(IMAGE_TAG_FILENAME)/Dockerfile/ --file=$(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar Dockerfile.$(IMAGE_TAG_FILENAME)
 
 build-docker: init build-tarball-docker
-	docker build $(DOCKER_OPTS_BUILD) --tag airstack/$(AIRSTACK_IMAGE_NAME):$(AIRSTACK_IMAGE_TAG) - < $(AIRSTACK_CACHE_DIR)/$(AIRSTACK_IMAGE_NAME).$(AIRSTACK_IMAGE_TAG).tar
+	docker build $(DOCKER_OPTS_BUILD) --tag $(AIRSTACK_IMAGE_FULLNAME) - < $(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar
 
-build: build-docker
-
-build-debug:
-	$(MAKE) DOCKER_OPTS_BUILD='--rm --no-cache' build
-
-build-dev:
-	$(MAKE) AIRSTACK_IMAGE_TAG=dev build
-
-build-prod:
-	$(MAKE) AIRSTACK_IMAGE_TAG=prod AIRSTACK_TEMPLATES_FILES="Dockerfile.core Dockerfile.packages Dockerfile.services Dockerfile.debug Dockerfile.tests" build
+build-image: build-docker
 
 
 ################################################################################
@@ -131,17 +194,23 @@ build-prod:
 # Commands for cleaning up leftover container build artifacts.
 ################################################################################
 
-clean-all: clean clean-dev clean-prod
+clean: clean-all
+clean-all: clean-development clean-test clean-production
 
-clean: init
+clean-tag: init
 	@echo "Removing docker image tree for $(AIRSTACK_IMAGE_FULLNAME) ..."
-	docker rmi -f $(AIRSTACK_IMAGE_FULLNAME)
+	! docker rmi -f $(AIRSTACK_IMAGE_FULLNAME)
 
-clean-dev:
-	$(MAKE) AIRSTACK_IMAGE_TAG=dev clean
+clean-dev: clean-development
+clean-development:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) clean-tag
 
-clean-prod:
-	$(MAKE) AIRSTACK_IMAGE_TAG=prod clean
+clean-test:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) clean-tag
+
+clean-prod: clean-production
+clean-production:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) clean-tag
 
 
 ################################################################################
@@ -157,28 +226,27 @@ clean-prod:
 # CTRL-C Exits and does auto-cleanup.
 ################################################################################
 
-console: init
-	docker run $(DOCKER_OPTS_RUN_CONSOLE) $(OS_SPECIFIC_RUNOPTS) $(DOCKER_OPTS_USER_CONSOLE) $(DOCKER_OPTS_COMMON) $(DOCKER_OPTS_CMD)
+console:
+	$(MAKE) DOCKER_OPTS_RUN="$(DOCKER_OPTS_RUN_CONSOLE)" AIRSTACK_CMD="$(AIRSTACK_CMD_CONSOLE)" run
 
+# Run console without starting any services
 debug: console-debug
-
 console-debug:
-	$(MAKE) DOCKER_OPTS_CMD='/bin/bash' console
+	$(MAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_SHELL)" console
 
-console-dev:
-	$(MAKE) AIRSTACK_IMAGE_TAG=dev console
+console-dev: console-development
+console-development:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) console
 
-console-prod:
-	$(MAKE) AIRSTACK_IMAGE_TAG=prod console
+console-test:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) console
+
+console-prod: console-prodution
+console-prodution:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) console
 
 console-single:
-	$(MAKE) DOCKER_OPTS_CMD='sh -c "{ /etc/runit/2 single &}; chpst -u $(USERNAME) /bin/bash"' console
-
-console-single-dev:
-	$(MAKE) DOCKER_OPTS_CMD='sh -c "{ /etc/runit/2 single &}; chpst -u $(USERNAME) /bin/bash"' console-dev
-
-console-single-prod:
-	$(MAKE) DOCKER_OPTS_CMD='sh -c "{ /etc/runit/2 single &}; chpst -u $(USERNAME) /bin/bash"' console-prod
+	$(MAKE) AIRSTACK_RUN_MODE=single console
 
 
 ################################################################################
@@ -191,16 +259,43 @@ console-single-prod:
 ################################################################################
 
 run: init
-	docker run $(DOCKER_OPTS_RUN) $(OS_SPECIFIC_RUNOPTS) $(DOCKER_OPTS_USER) $(DOCKER_OPTS_COMMON) $(DOCKER_OPTS_CMD)
+	docker run $(DOCKER_OPTS_RUN) $(OS_SPECIFIC_RUNOPTS) $(DOCKER_OPTS_USER) $(DOCKER_OPTS_COMMON) $(AIRSTACK_CMD)
 
-run-debug:
-	$(MAKE) DOCKER_OPTS_RUN="--rm -it" run
+run-dev: run-development
+run-development:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) run
 
-run-dev:
-	$(MAKE) AIRSTACK_IMAGE_TAG=dev run
+run-test:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) run
 
-run-prod:
-	$(MAKE) AIRSTACK_IMAGE_TAG=prod run
+run-dev: run-production
+run-production:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) run
+
+run-base: init
+	docker run --rm -it $(AIRSTACK_BASE_IMAGE) /bin/bash
+
+
+################################################################################
+# TEST COMMANDS
+################################################################################
+
+test-all: test test-development test-production
+
+test-runner:
+	@echo test-runner
+	$(MAKE) AIRSTACK_CMD_CONSOLE="core-test-runner -f /package/airstack/test/*_spec.lua" console
+
+test:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) test-runner
+
+test-dev: test-development
+test-development:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) test-runner
+
+test-prod: test-production
+test-production:
+	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) test-runner
 
 
 ################################################################################
@@ -210,53 +305,32 @@ run-prod:
 ################################################################################
 
 repair: init
-ifeq ($(uname_S),Darwin)
+ifeq ($(PLATFORM),osx)
 	@printf "\n\
 	=====================\n\
 	Repairing boot2docker\n\
 	=====================\n\
 	"
-	@printf "\nTurning off existing boot2docker VMs..."
+	@ehco "\nTurning off existing boot2docker VMs..."
 	@boot2docker poweroff
-	@printf "DONE\n"
+	@echo "DONE\n"
 
-	@printf "\nRemoving existing boot2docker setup..."
+	@echo "\nRemoving existing boot2docker setup..."
 	@boot2docker destroy
-	@printf "DONE\n"
+	@echo "DONE\n"
 
-	@printf "\nInitializing new boot2docker setup..."
+	@echo "\nInitializing new boot2docker setup..."
 	boot2docker init > /dev/null
-	@printf "DONE\n"
+	@echo "DONE\n"
 endif
 
-stats:
-	docker images | grep $(USERDIR)
+stats: init
+	docker images | grep $(AIRSTACK_IMAGE_NAME)
 
-ps:
+ps: init
 	docker ps
 
-blank:
-	docker run --rm -it debian:jessie /bin/bash
-
-ssh:
-ifeq ($(uname_S),Darwin)
+ssh-vm: init
+ifeq ($(PLATFORM),osx)
 	boot2docker ssh
 endif
-
-################################################################################
-# TEST COMMANDS
-################################################################################
-
-test-all: test test-dev test-prod
-
-test:
-	@echo test
-	$(MAKE) DOCKER_OPTS_CMD="core-test-runner -f /package/airstack/test/*_spec.lua" console
-
-test-dev:
-	@echo test
-	$(MAKE) AIRSTACK_IMAGE_TAG=dev test
-
-test-prod:
-	@echo test
-	$(MAKE) AIRSTACK_IMAGE_TAG=prod test
