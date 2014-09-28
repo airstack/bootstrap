@@ -153,7 +153,8 @@ bootstrap:
 init:
 	@# TODO: move all file related tasks to non PHONY tasks; no need to test if files exists since that's what make does by default
 	$(AT)$(foreach var,$(AIRSTACK_BUILD),$(shell [ -e $(AIRSTACK_BUILD_DIR)/$(var) ] || touch $(AIRSTACK_BUILD_DIR)/$(var) ]))
-	$(AT)[ -d $(AIRSTACK_CACHE_DIR) ] || mkdir -vp $(AIRSTACK_CACHE_DIR)
+	$(AT)test -d $(AIRSTACK_CACHE_DIR) || mkdir -vp $(AIRSTACK_CACHE_DIR)
+	$(AT)test -f $(AIRSTACK_IGNOREFILE) || cp $(AIRSTACK_HOME)/bootstrap/templates/airstackignore $(AIRSTACK_DIR)/.airstackignore $(DEBUG_STDOUT) $(DEBUG_STDERR)
 	@# TODO: add call to ~/.airstack/bootstrap/init to populate .airstackignore ???
 	@# TODO: split boot2docker commands into separate init ???
 ifeq ($(PLATFORM),osx)
