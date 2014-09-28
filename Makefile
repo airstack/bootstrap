@@ -195,7 +195,7 @@ build-image: build-docker
 ################################################################################
 
 clean: clean-all
-clean-all: clean-development clean-test clean-production
+clean-all: clean-development clean-test clean-production clean-cache
 
 clean-tag: init
 	@echo "Removing docker image tree for $(AIRSTACK_IMAGE_FULLNAME) ..."
@@ -212,6 +212,12 @@ clean-prod: clean-production
 clean-production:
 	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) clean-tag
 
+clean-cache:
+ifeq ($(CURDIR),$(findstring $(CURDIR)a,$(AIRSTACK_CACHE_DIR)))
+	rm -rf $(AIRSTACK_CACHE_DIR)
+else
+	@printf "\n[WARNING] Not deleting cache directory\n\n"
+endif
 
 ################################################################################
 # CONSOLE COMMANDS
