@@ -67,10 +67,7 @@ AIRSTACK_IMAGE_FULLNAME ?= $(AIRSTACK_IMAGE_NAME):$(AIRSTACK_IMAGE_TAG)
 
 AIRSTACK_RUN_MODE ?= multi
 AIRSTACK_CMD ?= sh -c '{ /etc/runit/2 $(AIRSTACK_RUN_MODE) &}'
-# TODO: John, why do we need chpst here? It doesn't seem to work since the Docker user is airstack
-# AIRSTACK_SHELL ?= chpst -u $(AIRSTACK_USERNAME) /bin/rbash
-# TODO: should we use rbash or bash?
-AIRSTACK_SHELL ?= /bin/rbash
+AIRSTACK_SHELL ?= chpst -u $(AIRSTACK_USERNAME) /bin/bash
 AIRSTACK_CMD_CONSOLE ?= sh -c '{ /etc/runit/2 $(AIRSTACK_RUN_MODE) &}; $(AIRSTACK_SHELL)'
 
 AIRSTACK_BASE_IMAGE := debian:jessie
