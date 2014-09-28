@@ -98,14 +98,16 @@ else
 endif
 
 # .PHONY should include all commands. Arrange in order that they appear in the Makefile
-.PHONY: default all init \
-	build build-all debug build-debug build-dev build-prod \
-	clean clean-all clean-dev clean-prod \
-	console console-debug console-dev console-prod \
+.PHONY: default all init bootstrap help \
+	build build-all build-debug build-dev build-development build-prod build-production build-test \
+	build-tarball build-tarball-docker build-docker build-image \
+	clean clean-all clean-tag clean-dev clean-development clean-prod clean-production clean-test clean-cache \
+	debug \
+	console console-debug console-dev console-development console-prod console-production console-test console-single \
 	console-single console-single-dev console-single-prod \
-	run run-debug run-dev run-prod \
-	repair stats ps blank ssh \
-	test test-all test-dev test-prod
+	run run-dev run-development run-prod run-production run-test run-base \
+	test test-all test-runner test-dev test-development test-prod test-production \
+	repair stats ps ssh-vm \
 
 
 ################################################################################
