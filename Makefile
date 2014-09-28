@@ -317,17 +317,17 @@ ifeq ($(PLATFORM),osx)
 	Repairing boot2docker\n\
 	=====================\n\
 	"
-	@ehco "\nTurning off existing boot2docker VMs..."
+	@printf "\nTurning off existing boot2docker VMs..."
 	@boot2docker poweroff
-	@echo "DONE\n"
+	@printf "DONE\n"
 
-	@echo "\nRemoving existing boot2docker setup..."
+	@printf "\nRemoving existing boot2docker setup..."
 	@boot2docker destroy
-	@echo "DONE\n"
+	@printf "DONE\n"
 
-	@echo "\nInitializing new boot2docker setup..."
+	@printf "\nInitializing new boot2docker setup..."
 	boot2docker init > /dev/null
-	@echo "DONE\n"
+	@printf "DONE\n"
 endif
 
 stats: init
