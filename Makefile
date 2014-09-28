@@ -14,7 +14,7 @@
 # DEBUG LEVELS
 # 0 - no output
 # 1 - print info
-# 2 - print info and stdout
+# 2 - print info, stdout, and stderr
 # 3 - verbose
 # 4 - very verbose
 DEBUG_LEVEL ?= 2
@@ -38,10 +38,10 @@ ifeq ($(shell test $(DEBUG_LEVEL) -gt 0 && echo y),y)
 endif
 ifeq ($(shell test $(DEBUG_LEVEL) -gt 1 && echo y),y)
 	DEBUG_STDOUT :=
+	DEBUG_STDERR :=
 endif
 ifeq ($(shell test $(DEBUG_LEVEL) -gt 2 && echo y),y)
 	AT :=
-	DEBUG_STDERR :=
 	DEBUG_VERBOSE_FLAG := -v
 endif
 ifeq ($(shell test $(DEBUG_LEVEL) -gt 3 && echo y),y)
