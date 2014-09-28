@@ -10,9 +10,9 @@
 
 ################################################################################
 # BOOTSTRAP MAKEFILE: DO NOT EDIT BELOW THIS LINE
-AIRSTACK_HOME ?= ~/.airstack/bootstrap
-ifeq ($(shell test -d $(AIRSTACK_HOME) && echo yes),yes)
-include $(AIRSTACK_HOME)/Makefile
+AIRSTACK_HOME ?= ~/.airstack
+ifeq ($(shell test -d $(AIRSTACK_HOME)/bootstrap && echo yes),yes)
+include $(AIRSTACK_HOME)/bootstrap/Makefile
 else
 .PHONY: bootstrap
 bootstrap:

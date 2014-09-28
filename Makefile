@@ -53,6 +53,8 @@ endif
 # COMMONLY OVERRIDDEN VARS
 ################################################################################
 
+AIRSTACK_HOME ?= ~/.airstack
+
 # Relative path to airstack dir; for cache, configs, etc.
 AIRSTACK_DIR ?= .airstack
 
