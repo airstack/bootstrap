@@ -43,13 +43,16 @@ AIRSTACK_ENV ?= $(AIRSTACK_ENV_DEVELOPMENT)
 # Docker image tag; ex: development
 AIRSTACK_IMAGE_TAG ?= $(AIRSTACK_ENV)
 
-# Build file templates located in AIRSTACK_TEMPLATES_DIR.
+# Build file templates located in AIRSTACK_BUILD_DIR.
 # Concatenated together on build. Useful for customizing dev vs test vs prod builds.
-AIRSTACK_BUILD_TEMPLATES_PRODUCTION ?= Dockerfile.base Dockerfile.packages Dockerfile.services
-AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT ?= $(AIRSTACK_BUILD_TEMPLATES_PRODUCTION) Dockerfile.development
-AIRSTACK_BUILD_TEMPLATES_TEST ?= $(AIRSTACK_BUILD_TEMPLATES_PRODUCTION) Dockerfile.test
+#
+# Example:
+# AIRSTACK_BUILD_PRODUCTION ?= Dockerfile.base Dockerfile.packages Dockerfile.services
+AIRSTACK_BUILD_DEVELOPMENT ?= Dockerfile.development
+AIRSTACK_BUILD_PRODUCTION ?= Dockerfile.production
+AIRSTACK_BUILD_TEST ?= Dockerfile.test
 
-AIRSTACK_BUILD_TEMPLATES ?= $(AIRSTACK_BUILD_TEMPLATES_$(AIRSTACK_ENV))
+AIRSTACK_BUILD ?= $(AIRSTACK_BUILD_$(AIRSTACK_ENV))
 
 
 ################################################################################
@@ -58,7 +61,7 @@ AIRSTACK_BUILD_TEMPLATES ?= $(AIRSTACK_BUILD_TEMPLATES_$(AIRSTACK_ENV))
 AIRSTACK_USERNAME ?= airstack
 AIRSTACK_USERDIR ?= $(AIRSTACK_USERNAME)
 
-AIRSTACK_TEMPLATES_DIR ?= $(AIRSTACK_DIR)/templates
+AIRSTACK_BUILD_DIR ?= $(AIRSTACK_DIR)/build
 AIRSTACK_CACHE_DIR ?= $(AIRSTACK_DIR)/cache
 AIRSTACK_IGNOREFILE ?= $(AIRSTACK_DIR)/.airstackignore
 
