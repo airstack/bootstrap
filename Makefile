@@ -247,8 +247,8 @@ console-development:
 console-test:
 	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) console
 
-console-prod: console-prodution
-console-prodution:
+console-prod: console-production
+console-production:
 	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) console
 
 console-single:
