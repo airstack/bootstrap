@@ -115,23 +115,20 @@ endif
 
 default: build
 
-all:
-	@echo all
-	$(MAKE) build
+all: build-all
 
 bootstrap:
 	@echo '========================================'
 	@echo Already bootstrapped!
 	@echo '========================================'
-	$(MAKE) help
+	@$(MAKE) help
 
 init:
-	@echo init
-	# TODO: move all file related tasks to non PHONY tasks; no need to test if files exists since that's what make does by default
+	@# TODO: move all file related tasks to non PHONY tasks; no need to test if files exists since that's what make does by default
 	$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),$(shell [ -e $(AIRSTACK_TEMPLATES_DIR)/$(var) ] || touch $(AIRSTACK_TEMPLATES_DIR)/$(var) ]))
 	@[ -d $(AIRSTACK_CACHE_DIR) ] || mkdir -vp $(AIRSTACK_CACHE_DIR)
-	# TODO: add call to ~/.airstack/bootstrap/init to populate .airstackignore ???
-	# TODO: split boot2docker commands into separate init ???
+	@# TODO: add call to ~/.airstack/bootstrap/init to populate .airstackignore ???
+	@# TODO: split boot2docker commands into separate init ???
 ifeq ($(PLATFORM),osx)
 ifneq ($(shell boot2docker status),running)
 	@boot2docker up
@@ -159,18 +156,18 @@ build: build-development
 
 # Rebuild dev image without using the cache
 build-debug:
-	$(MAKE) DOCKER_OPTS_BUILD='--rm --no-cache' build-development
+	@$(MAKE) DOCKER_OPTS_BUILD='--rm --no-cache' build-development
 
 build-dev: build-development
 build-development:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT)" build-image
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT)" build-image
 
 build-test:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_TEST)" build-image
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_TEST)" build-image
 
 build-prod: build-production
 build-production:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_PRODUCTION)" build-image
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_PRODUCTION)" build-image
 
 
 ################################################################################
@@ -206,14 +203,14 @@ clean-tag: init
 
 clean-dev: clean-development
 clean-development:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) clean-tag
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) clean-tag
 
 clean-test:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) clean-tag
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) clean-tag
 
 clean-prod: clean-production
 clean-production:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) clean-tag
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) clean-tag
 
 clean-cache:
 ifeq ($(CURDIR),$(findstring $(CURDIR)a,$(AIRSTACK_CACHE_DIR)))
@@ -236,26 +233,26 @@ endif
 ################################################################################
 
 console:
-	$(MAKE) DOCKER_OPTS_RUN="$(DOCKER_OPTS_RUN_CONSOLE)" AIRSTACK_CMD="$(AIRSTACK_CMD_CONSOLE)" run
+	@$(MAKE) DOCKER_OPTS_RUN="$(DOCKER_OPTS_RUN_CONSOLE)" AIRSTACK_CMD="$(AIRSTACK_CMD_CONSOLE)" run
 
 # Run console without starting any services
 debug: console-debug
 console-debug:
-	$(MAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_SHELL)" console
+	@$(MAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_SHELL)" console
 
 console-dev: console-development
 console-development:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) console
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) console
 
 console-test:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) console
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) console
 
 console-prod: console-prodution
 console-prodution:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) console
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) console
 
 console-single:
-	$(MAKE) AIRSTACK_RUN_MODE=single console
+	@$(MAKE) AIRSTACK_RUN_MODE=single console
 
 
 ################################################################################
@@ -272,14 +269,14 @@ run: init
 
 run-dev: run-development
 run-development:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) run
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) run
 
 run-test:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) run
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) run
 
 run-dev: run-production
 run-production:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) run
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) run
 
 run-base: init
 	docker run --rm -it $(AIRSTACK_BASE_IMAGE) /bin/bash
@@ -293,18 +290,18 @@ test-all: test test-development test-production
 
 test-runner:
 	@echo test-runner
-	$(MAKE) AIRSTACK_CMD_CONSOLE="core-test-runner -f /package/airstack/test/*_spec.lua" console
+	@$(MAKE) AIRSTACK_CMD_CONSOLE="core-test-runner -f /package/airstack/test/*_spec.lua" console
 
 test:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) test-runner
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) test-runner
 
 test-dev: test-development
 test-development:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) test-runner
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) test-runner
 
 test-prod: test-production
 test-production:
-	$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) test-runner
+	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) test-runner
 
 
 ################################################################################
