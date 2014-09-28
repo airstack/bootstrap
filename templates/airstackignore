@@ -5,6 +5,7 @@
 _wip
 *.tar
 *.tar.*
+*.example
 
 CVS/
 RCS/
