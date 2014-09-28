@@ -9,21 +9,44 @@
 # `make AIRSTACK_ENV=development build`
 #######################################
 
-DEBUG ?= false
-ifneq ($(DEBUG),false)
-	DEBUG := true
-endif
+# ENV constants
 
-ifeq ($(DEBUG),true)
-	SHELL := /bin/sh -xv
-else
-	SHELL := /bin/sh
-endif
-
+# DEBUG LEVELS
+# 0 - no output
+# 1 - print info
+# 2 - print info and stdout
+# 3 - verbose
+# 4 - very verbose
+DEBUG_LEVEL ?= 2
 
 AIRSTACK_ENV_DEVELOPMENT ?= development
 AIRSTACK_ENV_TEST ?= test
 AIRSTACK_ENV_PRODUCTION ?= production
+
+# Setup output verbosity
+ifeq ($(DEBUG_LEVEL),4)
+	SHELL := /bin/sh -xv
+else
+	SHELL := /bin/sh
+endif
+AT := @
+DEBUG_STDOUT := 1>/dev/null
+DEBUG_STDERR := 2>/dev/null
+DEBUG_INFO := 1>/dev/null
+ifeq ($(shell test $(DEBUG_LEVEL) -gt 0 && echo y),y)
+	DEBUG_INFO :=
+endif
+ifeq ($(shell test $(DEBUG_LEVEL) -gt 1 && echo y),y)
+	DEBUG_STDOUT :=
+endif
+ifeq ($(shell test $(DEBUG_LEVEL) -gt 2 && echo y),y)
+	AT :=
+	DEBUG_STDERR :=
+	DEBUG_VERBOSE_FLAG := -v
+endif
+ifeq ($(shell test $(DEBUG_LEVEL) -gt 3 && echo y),y)
+	DEBUG_VERBOSE_FLAG := -vv
+endif
 
 
 ################################################################################
@@ -119,30 +142,31 @@ default: build
 all: build-all
 
 bootstrap:
-	@echo '========================================'
-	@echo Already bootstrapped!
-	@echo '========================================'
-	@$(MAKE) help
+	@printf "\n\
+	========================================\n\
+	        Already bootstrapped!\n\
+	========================================\n\n" $(DEBUG_INFO)
+	$(AT)$(MAKE) help
 
 init:
 	@# TODO: move all file related tasks to non PHONY tasks; no need to test if files exists since that's what make does by default
-	$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),$(shell [ -e $(AIRSTACK_TEMPLATES_DIR)/$(var) ] || touch $(AIRSTACK_TEMPLATES_DIR)/$(var) ]))
-	@[ -d $(AIRSTACK_CACHE_DIR) ] || mkdir -vp $(AIRSTACK_CACHE_DIR)
+	$(AT)$(foreach var,$(AIRSTACK_BUILD),$(shell [ -e $(AIRSTACK_BUILD_DIR)/$(var) ] || touch $(AIRSTACK_BUILD_DIR)/$(var) ]))
+	$(AT)[ -d $(AIRSTACK_CACHE_DIR) ] || mkdir -vp $(AIRSTACK_CACHE_DIR)
 	@# TODO: add call to ~/.airstack/bootstrap/init to populate .airstackignore ???
 	@# TODO: split boot2docker commands into separate init ???
 ifeq ($(PLATFORM),osx)
-ifneq ($(shell boot2docker status),running)
-	@boot2docker up
+ifneq ($(shell boot2docker status $(DEBUG_STDERR)),running)
+	$(AT)boot2docker $(DEBUG_VERBOSE_FLAG) up $(DEBUG_STDOUT) $(DEBUG_STDERR)
 endif
-export AIRSTACK_HOST=tcp://$(shell boot2docker ip 2>/dev/null):2375
+$(AT)export DOCKER_HOST=tcp://$(shell boot2docker ip $(DEBUG_STDERR)):2375
 endif
 
 help:
-	@echo TODO: add Makefile help
-	# @echo USAGE:
-	# @echo make build-dev
-	# @echo make build-dev console-dev
-	# @echo make -j5 build-all
+	@echo Need to implement help
+	@# @echo USAGE:
+	@# @echo make build-dev
+	@# @echo make build-dev console-dev
+	@# @echo make -j5 build-all
 
 
 ################################################################################
@@ -157,18 +181,18 @@ build: build-development
 
 # Rebuild dev image without using the cache
 build-debug:
-	@$(MAKE) DOCKER_OPTS_BUILD='--rm --no-cache' build-development
+	$(AT)$(MAKE) DOCKER_OPTS_BUILD='--rm --no-cache' build-development
 
 build-dev: build-development
 build-development:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT)" build-image
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) AIRSTACK_BUILD="$(AIRSTACK_BUILD_DEVELOPMENT)" build-image
 
 build-test:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_TEST)" build-image
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_BUILD="$(AIRSTACK_BUILD_TEST)" build-image
 
 build-prod: build-production
 build-production:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_PRODUCTION)" build-image
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) AIRSTACK_BUILD="$(AIRSTACK_BUILD_PRODUCTION)" build-image
 
 
 ################################################################################
@@ -176,15 +200,18 @@ build-production:
 ################################################################################
 
 build-tarball:
-	tar -cvf $(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar -C $(CURDIR) -X $(AIRSTACK_IGNOREFILE) .
+	$(AT)tar $(DEBUG_VERBOSE_FLAG) -cf $(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar -C $(CURDIR) -X $(AIRSTACK_IGNOREFILE) . $(DEBUG_STDERR)
 
 build-tarball-docker: build-tarball
-	> $(AIRSTACK_CACHE_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME)
-	$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),cat $(AIRSTACK_TEMPLATES_DIR)/$(var) >> $(AIRSTACK_CACHE_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME);)
-	tar -C $(AIRSTACK_CACHE_DIR) --append -s /Dockerfile.$(IMAGE_TAG_FILENAME)/Dockerfile/ --file=$(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar Dockerfile.$(IMAGE_TAG_FILENAME)
+	$(AT)> $(AIRSTACK_CACHE_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME)
+	$(AT)$(foreach var,$(AIRSTACK_BUILD),cat $(AIRSTACK_BUILD_DIR)/$(var) >> $(AIRSTACK_CACHE_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME);)
+	$(AT)tar $(DEBUG_VERBOSE_FLAG) -C $(AIRSTACK_CACHE_DIR) --append -s /Dockerfile.$(IMAGE_TAG_FILENAME)/Dockerfile/ --file=$(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar Dockerfile.$(IMAGE_TAG_FILENAME) $(DEBUG_STDERR)
 
 build-docker: init build-tarball-docker
-	docker build $(DOCKER_OPTS_BUILD) --tag $(AIRSTACK_IMAGE_FULLNAME) - < $(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar
+	$(AT)docker build $(DOCKER_OPTS_BUILD) --tag $(AIRSTACK_IMAGE_FULLNAME) - < $(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar $(DEBUG_STDOUT) $(DEBUG_STDERR)
+	@printf "\
+	[DONE] $(AIRSTACK_IMAGE_FULLNAME)\n\
+	" $(DEBUG_INFO)
 
 build-image: build-docker
 
@@ -199,23 +226,24 @@ clean: clean-all
 clean-all: clean-development clean-test clean-production clean-cache
 
 clean-tag: init
-	@echo "Removing docker image tree for $(AIRSTACK_IMAGE_FULLNAME) ..."
-	! docker rmi -f $(AIRSTACK_IMAGE_FULLNAME)
+	@echo "Removing Docker image: $(AIRSTACK_IMAGE_FULLNAME)" $(DEBUG_INFO)
+	$(AT)! docker rmi -f $(AIRSTACK_IMAGE_FULLNAME) $(DEBUG_STDERR)
 
 clean-dev: clean-development
 clean-development:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) clean-tag
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) clean-tag
 
 clean-test:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) clean-tag
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) clean-tag
 
 clean-prod: clean-production
 clean-production:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) clean-tag
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) clean-tag
 
 clean-cache:
-ifeq ($(CURDIR),$(findstring $(CURDIR)a,$(AIRSTACK_CACHE_DIR)))
-	rm -rf $(AIRSTACK_CACHE_DIR)
+	@echo "Cleaning cache dir: $(AIRSTACK_CACHE_DIR)" $(DEBUG_INFO)
+ifeq ($(CURDIR),$(findstring $(CURDIR),$(AIRSTACK_CACHE_DIR)))
+	$(AT)rm $(DEBUG_VERBOSE_FLAG) -rf $(AIRSTACK_CACHE_DIR) $(DEBUG_STDERR)
 else
 	@printf "\n[WARNING] Not deleting cache directory\n\n"
 endif
@@ -234,26 +262,26 @@ endif
 ################################################################################
 
 console:
-	@$(MAKE) DOCKER_OPTS_RUN="$(DOCKER_OPTS_RUN_CONSOLE)" AIRSTACK_CMD="$(AIRSTACK_CMD_CONSOLE)" run
+	$(AT)$(MAKE) DOCKER_OPTS_RUN="$(DOCKER_OPTS_RUN_CONSOLE)" AIRSTACK_CMD="$(AIRSTACK_CMD_CONSOLE)" run
 
 # Run console without starting any services
 debug: console-debug
 console-debug:
-	@$(MAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_SHELL)" console
+	$(AT)$(MAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_SHELL)" console
 
 console-dev: console-development
 console-development:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) console
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) console
 
 console-test:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) console
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) console
 
 console-prod: console-production
 console-production:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) console
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) console
 
 console-single:
-	@$(MAKE) AIRSTACK_RUN_MODE=single console
+	$(AT)$(MAKE) AIRSTACK_RUN_MODE=single console
 
 
 ################################################################################
@@ -266,21 +294,21 @@ console-single:
 ################################################################################
 
 run: init
-	docker run $(DOCKER_OPTS_RUN) $(OS_SPECIFIC_RUNOPTS) $(DOCKER_OPTS_USER) $(DOCKER_OPTS_COMMON) $(AIRSTACK_CMD)
+	$(AT)docker run $(DOCKER_OPTS_RUN) $(OS_SPECIFIC_RUNOPTS) $(DOCKER_OPTS_USER) $(DOCKER_OPTS_COMMON) $(AIRSTACK_CMD) $(DEBUG_STDERR)
 
 run-dev: run-development
 run-development:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) run
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) run
 
 run-test:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) run
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) run
 
 run-dev: run-production
 run-production:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) run
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) run
 
 run-base: init
-	docker run --rm -it $(AIRSTACK_BASE_IMAGE) /bin/bash
+	$(AT)docker run --rm -it $(AIRSTACK_BASE_IMAGE) /bin/bash $(DEBUG_STDERR)
 
 
 ################################################################################
@@ -290,19 +318,18 @@ run-base: init
 test-all: test test-development test-production
 
 test-runner:
-	@echo test-runner
-	@$(MAKE) AIRSTACK_CMD_CONSOLE="core-test-runner -f /package/airstack/test/*_spec.lua" console
+	$(AT)$(MAKE) AIRSTACK_CMD_CONSOLE="core-test-runner -f /package/airstack/test/*_spec.lua" console
 
 test:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) test-runner
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) test-runner
 
 test-dev: test-development
 test-development:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) test-runner
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) test-runner
 
 test-prod: test-production
 test-production:
-	@$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) test-runner
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) test-runner
 
 
 ################################################################################
@@ -317,27 +344,28 @@ ifeq ($(PLATFORM),osx)
 	=====================\n\
 	Repairing boot2docker\n\
 	=====================\n\
-	"
-	@printf "\nTurning off existing boot2docker VMs..."
-	@boot2docker poweroff
-	@printf "DONE\n"
+	" $(DEBUG_INFO)
 
-	@printf "\nRemoving existing boot2docker setup..."
-	@boot2docker destroy
-	@printf "DONE\n"
+	@printf "\nTurning off existing boot2docker VMs..." $(DEBUG_INFO)
+	$(AT)boot2docker $(DEBUG_VERBOSE_FLAG) poweroff $(DEBUG_STDOUT) $(DEBUG_STDERR)
+	@printf "DONE\n" $(DEBUG_INFO)
 
-	@printf "\nInitializing new boot2docker setup..."
-	boot2docker init > /dev/null
-	@printf "DONE\n"
+	@printf "\nRemoving existing boot2docker setup..." $(DEBUG_INFO)
+	$(AT)boot2docker $(DEBUG_VERBOSE_FLAG) destroy $(DEBUG_STDOUT) $(DEBUG_STDERR)
+	@printf "DONE\n" $(DEBUG_INFO)
+
+	@printf "\nInitializing new boot2docker setup..." $(DEBUG_INFO)
+	$(AT)boot2docker $(DEBUG_VERBOSE_FLAG) init $(DEBUG_STDOUT) $(DEBUG_STDERR)
+	@printf "DONE\n" $(DEBUG_INFO)
 endif
 
 stats: init
-	docker images | grep $(AIRSTACK_IMAGE_NAME)
+	$(AT)docker images | grep $(AIRSTACK_IMAGE_NAME) $(DEBUG_STDERR)
 
 ps: init
-	docker ps
+	$(AT)docker ps $(DEBUG_STDERR)
 
 ssh-vm: init
 ifeq ($(PLATFORM),osx)
-	boot2docker ssh
+	$(AT)boot2docker $(DEBUG_VERBOSE_FLAG) ssh $(DEBUG_STDERR)
 endif
