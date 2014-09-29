@@ -15,7 +15,8 @@ ifeq ($(shell test -d $(AIRSTACK_HOME)/package/airstack/bootstrap && echo y),y)
 include $(AIRSTACK_HOME)/package/airstack/bootstrap/Makefile
 else
 .PHONY: init
-default: init
 init:
   curl -s https://raw.githubusercontent.com/airstack/bootstrap/master/install | sh -e
+.DEFAULT:
+	@echo Please run \'make init\' to initialize Airstack
 endif
