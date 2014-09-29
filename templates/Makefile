@@ -17,6 +17,7 @@ else
 .PHONY: init
 init:
   curl -s https://raw.githubusercontent.com/airstack/bootstrap/master/install | sh -e
+  @$(MAKE) init
 .DEFAULT:
 	@echo Please run \'make init\' to initialize Airstack
 endif
