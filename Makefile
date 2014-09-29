@@ -25,9 +25,9 @@ AIRSTACK_ENV_PRODUCTION ?= production
 
 # Setup output verbosity
 ifeq ($(DEBUG_LEVEL),4)
-	SHELL := /bin/sh -xv
+	SHELL := /bin/sh -exv
 else
-	SHELL := /bin/sh
+	SHELL := /bin/sh -e
 endif
 AT := @
 DEBUG_STDOUT := 1>/dev/null
