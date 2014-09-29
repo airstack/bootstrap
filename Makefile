@@ -53,9 +53,11 @@ endif
 # COMMONLY OVERRIDDEN VARS
 ################################################################################
 
+# User dir for Airstack dependencies, cache, etc.; not project specific
 AIRSTACK_HOME ?= ~/.airstack
 
-# Relative path to airstack dir; for cache, configs, etc.
+# Relative path to project specific airstack dir.
+# Dir contains build artifacts, project configs, etc.
 AIRSTACK_DIR ?= .airstack
 
 # Name of Docker image to build; ex: airstack/core
@@ -68,28 +70,30 @@ AIRSTACK_ENV ?= $(AIRSTACK_ENV_DEVELOPMENT)
 # Docker image tag; ex: development
 AIRSTACK_IMAGE_TAG ?= $(AIRSTACK_ENV)
 
-# Build file templates located in AIRSTACK_BUILD_DIR.
+# Build file templates located in AIRSTACK_BUILD_TEMPLATES_DIR.
 # Concatenated together on build. Useful for customizing dev vs test vs prod builds.
 #
 # Example:
-# AIRSTACK_BUILD_PRODUCTION ?= Dockerfile.base Dockerfile.packages Dockerfile.services
-AIRSTACK_BUILD_DEVELOPMENT ?= Dockerfile.development
-AIRSTACK_BUILD_PRODUCTION ?= Dockerfile.production
-AIRSTACK_BUILD_TEST ?= Dockerfile.test
+# AIRSTACK_BUILD_TEMPLATES_PRODUCTION ?= Dockerfile.base Dockerfile.packages Dockerfile.services
+AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT ?= Dockerfile.development
+AIRSTACK_BUILD_TEMPLATES_PRODUCTION ?= Dockerfile.production
+AIRSTACK_BUILD_TEMPLATES_TEST ?= Dockerfile.test
 
-AIRSTACK_BUILD ?= $(AIRSTACK_BUILD_$(AIRSTACK_ENV))
+AIRSTACK_BUILD_TEMPLATES ?= $(AIRSTACK_BUILD_$(AIRSTACK_ENV))
 
 
 ################################################################################
 # CONFIG VARS
 ################################################################################
+
+AIRSTACK_BOOTSTRAP_HOME ?= $(AIRSTACK_HOME)/package/airstack/bootstrap
+
 AIRSTACK_USERNAME ?= airstack
 AIRSTACK_USERDIR ?= $(AIRSTACK_USERNAME)
 
+AIRSTACK_BUILD_TEMPLATES_DIR ?= $(AIRSTACK_DIR)/config
 AIRSTACK_BUILD_DIR ?= $(AIRSTACK_DIR)/build
-AIRSTACK_CACHE_DIR ?= $(AIRSTACK_DIR)/cache
-AIRSTACK_IGNOREFILE ?= $(AIRSTACK_DIR)/.airstackignore
-
+AIRSTACK_IGNOREFILE ?= $(CURDIR)/.airstackignore
 AIRSTACK_IMAGE_FULLNAME ?= $(AIRSTACK_IMAGE_NAME):$(AIRSTACK_IMAGE_TAG)
 
 AIRSTACK_RUN_MODE ?= multi
@@ -113,7 +117,7 @@ DOCKER_OPTS_COMMON ?= --publish-all --workdir /home/$(AIRSTACK_USERDIR) -e HOME=
 IMAGE_TAG_FILENAME := $(shell echo $(AIRSTACK_IMAGE_TAG) | sed -e 's/[\/ \\]/_/g')
 
 # TODO: only expand var if first char is not a '/'
-AIRSTACK_CACHE_DIR := $(CURDIR)/$(AIRSTACK_CACHE_DIR)
+AIRSTACK_BUILD_DIR := $(CURDIR)/$(AIRSTACK_BUILD_DIR)
 
 PLATFORM := $(shell [ $$(uname -s 2>/dev/null) = Darwin ] && echo osx || echo linux)
 ifeq ($(PLATFORM),osx)
@@ -152,11 +156,12 @@ bootstrap:
 
 init:
 	@# TODO: move all file related tasks to non PHONY tasks; no need to test if files exists since that's what make does by default
-	$(AT)$(foreach var,$(AIRSTACK_BUILD),$(shell [ -e $(AIRSTACK_BUILD_DIR)/$(var) ] || touch $(AIRSTACK_BUILD_DIR)/$(var) ]))
-	$(AT)test -d $(AIRSTACK_CACHE_DIR) || mkdir -vp $(AIRSTACK_CACHE_DIR)
-	$(AT)test -f $(AIRSTACK_IGNOREFILE) || cp $(AIRSTACK_HOME)/bootstrap/templates/airstackignore $(AIRSTACK_DIR)/.airstackignore $(DEBUG_STDOUT) $(DEBUG_STDERR)
+	$(AT)$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),$(shell [ -e $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) ] || touch $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) ]))
+	$(AT)test -d $(AIRSTACK_BUILD_DIR) || mkdir -vp $(AIRSTACK_BUILD_DIR)
+	$(AT)test -f $(AIRSTACK_IGNOREFILE) || cp $(AIRSTACK_BOOTSTRAP_HOME)/templates/airstackignore $(AIRSTACK_IGNOREFILE) $(DEBUG_STDOUT) $(DEBUG_STDERR)
 	@# TODO: add call to ~/.airstack/bootstrap/init to populate .airstackignore ???
 	@# TODO: split boot2docker commands into separate init ???
+	@# TODO: add items from ~/.airstack/...bootstrap/templates/gitignore to .gitignore as needed
 ifeq ($(PLATFORM),osx)
 ifneq ($(shell boot2docker status $(DEBUG_STDERR)),running)
 	$(AT)boot2docker $(DEBUG_VERBOSE_FLAG) up $(DEBUG_STDOUT) $(DEBUG_STDERR)
@@ -188,14 +193,14 @@ build-debug:
 
 build-dev: build-development
 build-development:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) AIRSTACK_BUILD="$(AIRSTACK_BUILD_DEVELOPMENT)" build-image
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT)" build-image
 
 build-test:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_BUILD="$(AIRSTACK_BUILD_TEST)" build-image
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_TEST)" build-image
 
 build-prod: build-production
 build-production:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) AIRSTACK_BUILD="$(AIRSTACK_BUILD_PRODUCTION)" build-image
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_PRODUCTION)" build-image
 
 
 ################################################################################
@@ -203,17 +208,17 @@ build-production:
 ################################################################################
 
 build-tarball:
-	$(AT)tar $(DEBUG_VERBOSE_FLAG) -cf $(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar -C $(CURDIR) -X $(AIRSTACK_IGNOREFILE) . $(DEBUG_STDERR)
+	$(AT)tar $(DEBUG_VERBOSE_FLAG) -cf $(AIRSTACK_BUILD_DIR)/build.$(IMAGE_TAG_FILENAME).tar -C $(CURDIR) -X $(AIRSTACK_IGNOREFILE) . $(DEBUG_STDERR)
 
 build-tarball-docker: build-tarball
-	$(AT)> $(AIRSTACK_CACHE_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME)
-	$(AT)$(foreach var,$(AIRSTACK_BUILD),cat $(AIRSTACK_BUILD_DIR)/$(var) >> $(AIRSTACK_CACHE_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME);)
-	$(AT)tar $(DEBUG_VERBOSE_FLAG) -C $(AIRSTACK_CACHE_DIR) --append -s /Dockerfile.$(IMAGE_TAG_FILENAME)/Dockerfile/ --file=$(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar Dockerfile.$(IMAGE_TAG_FILENAME) $(DEBUG_STDERR)
+	$(AT)> $(AIRSTACK_BUILD_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME)
+	$(AT)$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),cat $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) >> $(AIRSTACK_BUILD_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME);)
+	$(AT)tar $(DEBUG_VERBOSE_FLAG) -C $(AIRSTACK_BUILD_DIR) --append -s /Dockerfile.$(IMAGE_TAG_FILENAME)/Dockerfile/ --file=$(AIRSTACK_BUILD_DIR)/build.$(IMAGE_TAG_FILENAME).tar Dockerfile.$(IMAGE_TAG_FILENAME) $(DEBUG_STDERR)
 
 build-docker: init build-tarball-docker
-	$(AT)docker build $(DOCKER_OPTS_BUILD) --tag $(AIRSTACK_IMAGE_FULLNAME) - < $(AIRSTACK_CACHE_DIR)/build.$(IMAGE_TAG_FILENAME).tar $(DEBUG_STDOUT) $(DEBUG_STDERR)
+	$(AT)docker build $(DOCKER_OPTS_BUILD) --tag $(AIRSTACK_IMAGE_FULLNAME) - < $(AIRSTACK_BUILD_DIR)/build.$(IMAGE_TAG_FILENAME).tar $(DEBUG_STDOUT) $(DEBUG_STDERR)
 	@printf "\
-	[DONE] $(AIRSTACK_IMAGE_FULLNAME)\n\
+	[BUILT] $(AIRSTACK_IMAGE_FULLNAME)\n\
 	" $(DEBUG_INFO)
 
 build-image: build-docker
@@ -244,9 +249,9 @@ clean-production:
 	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) clean-tag
 
 clean-cache:
-	@echo "Cleaning cache dir: $(AIRSTACK_CACHE_DIR)" $(DEBUG_INFO)
-ifeq ($(CURDIR),$(findstring $(CURDIR),$(AIRSTACK_CACHE_DIR)))
-	$(AT)rm $(DEBUG_VERBOSE_FLAG) -rf $(AIRSTACK_CACHE_DIR) $(DEBUG_STDERR)
+	@echo "Cleaning cache dir: $(AIRSTACK_BUILD_DIR)" $(DEBUG_INFO)
+ifeq ($(CURDIR),$(findstring $(CURDIR),$(AIRSTACK_BUILD_DIR)))
+	$(AT)rm $(DEBUG_VERBOSE_FLAG) -rf $(AIRSTACK_BUILD_DIR) $(DEBUG_STDERR)
 else
 	@printf "\n[WARNING] Not deleting cache directory\n\n"
 endif
