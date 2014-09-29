@@ -139,7 +139,8 @@ all: build-all
 .PHONY: init
 init:
 	@# TODO: move all file related tasks to non PHONY tasks; no need to test if files exists since that's what make does by default
-	$(AT)$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),$(shell [ -e $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) ] || touch $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) ]))
+	$(AT)test -d $(AIRSTACK_BUILD_TEMPLATES_DIR) || mkdir -vp $(AIRSTACK_BUILD_TEMPLATES_DIR)
+	$(AT)$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),$(shell test -e $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) || touch $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) ))
 	$(AT)test -d $(AIRSTACK_BUILD_DIR) || mkdir -vp $(AIRSTACK_BUILD_DIR)
 	$(AT)test -f $(AIRSTACK_IGNOREFILE) || cp $(AIRSTACK_BOOTSTRAP_HOME)/templates/airstackignore $(AIRSTACK_IGNOREFILE) $(DEBUG_STDOUT) $(DEBUG_STDERR)
 	@# TODO: add call to ~/.airstack/bootstrap/init to populate .airstackignore ???
