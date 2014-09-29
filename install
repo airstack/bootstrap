@@ -2,7 +2,7 @@
 
 # TODO: make this interactive rather than automatically installing stuff
 
-${AIRSTACK_HOME:=~/.airstack}
+: ${AIRSTACK_HOME:=~/.airstack}
 
 install() {
   local cwd="$PWD"
@@ -11,7 +11,7 @@ install() {
   git clone https://github.com/airstack/bootstrap.git
   cd bootstrap
   cd $cwd
-  make init
+  echo Airstack installed to $AIRSTACK_HOME
 }
 
 install
