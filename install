@@ -2,10 +2,12 @@
 
 # TODO: make this interactive rather than automatically installing stuff
 
+${AIRSTACK_HOME:=~/.airstack}
+
 install() {
   local cwd="$PWD"
-  mkdir -vp ~/.airstack
-  cd ~/.airstack
+  mkdir -vp $AIRSTACK_HOME/package/airstack
+  cd $AIRSTACK_HOME/package/airstack
   git clone https://github.com/airstack/bootstrap.git
   cd bootstrap
   cd $cwd
