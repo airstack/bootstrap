@@ -162,7 +162,9 @@ init:
 	@# TODO: add call to ~/.airstack/bootstrap/init to populate .airstackignore ???
 	@# TODO: split boot2docker commands into separate init ???
 	@# TODO: add items from ~/.airstack/...bootstrap/templates/gitignore to .gitignore as needed
+	@# TODO: check if @$ is "init" and run `make help`
 ifeq ($(PLATFORM),osx)
+# TODO: add check for boot2docker; output url to boot2docker install page if needed
 ifneq ($(shell boot2docker status $(DEBUG_STDERR)),running)
 	$(AT)boot2docker $(DEBUG_VERBOSE_FLAG) up $(DEBUG_STDOUT) $(DEBUG_STDERR)
 endif
