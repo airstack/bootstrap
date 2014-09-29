@@ -9,7 +9,7 @@ install() {
   git clone https://github.com/airstack/bootstrap.git
   cd bootstrap
   cd $cwd
-  ~/.airstack/bootstrap/init
+  make init
 }
 
 install
