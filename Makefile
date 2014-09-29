@@ -155,6 +155,11 @@ endif
 $(AT)export DOCKER_HOST=tcp://$(shell boot2docker ip $(DEBUG_STDERR)):2375
 endif
 
+.PHONY: update
+update:
+	$(AT)test -d $(AIRSTACK_BOOTSTRAP_HOME) || ( echo "missing the bootstrap directory" && exit 1)
+	$(AT)cd $(AIRSTACK_BOOTSTRAP_HOME) && git pull origin master
+
 .PHONY: help
 help:
 	@echo Need to implement help
