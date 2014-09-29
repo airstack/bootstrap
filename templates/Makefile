@@ -11,11 +11,11 @@
 ################################################################################
 # BOOTSTRAP MAKEFILE: DO NOT EDIT BELOW THIS LINE
 AIRSTACK_HOME ?= ~/.airstack
-ifeq ($(shell test -d $(AIRSTACK_HOME)/bootstrap && echo yes),yes)
-include $(AIRSTACK_HOME)/bootstrap/Makefile
+ifeq ($(shell test -d $(AIRSTACK_HOME)/package/airstack/bootstrap && echo y),y)
+include $(AIRSTACK_HOME)/package/airstack/bootstrap/Makefile
 else
-.PHONY: bootstrap
-bootstrap:
-  # TODO: maybe add -L if it's secure; better to use GPG and sign the install script
+.PHONY: init
+default: init
+init:
   curl -s https://raw.githubusercontent.com/airstack/bootstrap/master/install | sh -e
 endif
