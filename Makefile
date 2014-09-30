@@ -342,27 +342,13 @@ run-base: init
 # TEST COMMANDS
 ################################################################################
 
-.PHONY: test-all
-test-all: test test-development test-production
-
-.PHONY: test-runner
-test-runner:
-	$(AT)$(MAKE) AIRSTACK_CMD_CONSOLE="core-test-runner -f /package/airstack/test/*_spec.lua" console
+# .PHONY: test-runner
+# test-runner:
+# 	$(AT)$(MAKE) AIRSTACK_CMD_CONSOLE="/command/core-test-runner -f /package/airstack/test/*_spec.lua" console
 
 .PHONY: test
 test:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) test-runner
-
-.PHONY: test-dev test-development
-test-dev: test-development
-test-development:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) test-runner
-
-.PHONY: test-prod test-production
-test-prod: test-production
-test-production:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) test-runner
-
+	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_CMD_CONSOLE="/command/core-test-runner -f /package/airstack/test/*_spec.lua" console
 
 ################################################################################
 # DOCKER COMMANDS
