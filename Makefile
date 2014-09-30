@@ -240,7 +240,7 @@ clean-all: clean-development clean-test clean-production clean-tarballs
 .PHONY: clean-tag
 clean-tag: init
 	@echo "Removing Docker image: $(AIRSTACK_IMAGE_FULLNAME)" $(DEBUG_INFO)
-	$(AT)! docker rmi -f $(AIRSTACK_IMAGE_FULLNAME) $(DEBUG_STDERR)
+	-$(AT)docker rmi -f $(AIRSTACK_IMAGE_FULLNAME) $(DEBUG_STDERR)
 
 .PHONY: clean-dev clean-development
 clean-dev: clean-development
