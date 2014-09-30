@@ -62,7 +62,7 @@ AIRSTACK_DIR ?= .airstack
 
 # Name of Docker image to build; ex: airstack/core
 # Defaults to current working dir's parent dir name
-AIRSTACK_IMAGE_NAME ?= $(notdir $(patsubst %/,%,$(dir $(CURDIR))))
+AIRSTACK_IMAGE_NAME ?= $(shell cat $(CURDIR)/env/AIRSTACK_IMAGE_NAME)
 
 # Current build environment: ex: development, test, production
 AIRSTACK_ENV ?= $(AIRSTACK_ENV_DEVELOPMENT)
