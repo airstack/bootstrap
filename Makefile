@@ -148,11 +148,12 @@ init:
 	@# TODO: add items from ~/.airstack/...bootstrap/templates/gitignore to .gitignore as needed
 	@# TODO: check if @$ is "init" and run `make help`
 ifeq ($(PLATFORM),osx)
-# TODO: add check for boot2docker; output url to boot2docker install page if needed
 ifneq ($(shell boot2docker status $(DEBUG_STDERR)),running)
+	@# TODO: add check for boot2docker; output url to boot2docker install page if needed
 	$(AT)boot2docker $(DEBUG_VERBOSE_FLAG) up $(DEBUG_STDOUT) $(DEBUG_STDERR)
+	$(AT)sleep 1 # sleep to prevent incorrect results from boot2docker ip
 endif
-$(AT)export DOCKER_HOST=tcp://$(shell boot2docker ip $(DEBUG_STDERR)):2375
+	$(eval export DOCKER_HOST ?= tcp://$(shell boot2docker ip 2>/dev/null):2375)
 endif
 
 .PHONY: update
