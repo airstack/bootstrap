@@ -32,7 +32,7 @@ endif
 AT := @
 DEBUG_STDOUT := 1>/dev/null
 DEBUG_STDERR := 2>/dev/null
-DEBUG_INFO := 1>/dev/null
+DEBUG_INFO := >&2
 ifeq ($(shell test $(DEBUG_LEVEL) -gt 0 && echo y),y)
 	DEBUG_INFO :=
 endif
