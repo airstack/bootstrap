@@ -53,6 +53,9 @@ endif
 # COMMONLY OVERRIDDEN VARS
 ################################################################################
 
+# Prefix used for commands that enable a terminal
+TERM ?= eval
+
 # User dir for Airstack dependencies, cache, etc.; not project specific
 AIRSTACK_HOME ?= ~/.airstack
 
@@ -318,7 +321,7 @@ console-single:
 
 .PHONY: run
 run: init
-	$(AT)docker run $(DOCKER_OPTS_RUN) $(OS_SPECIFIC_RUNOPTS) $(DOCKER_OPTS_USER) $(DOCKER_OPTS_COMMON) $(AIRSTACK_CMD) $(DEBUG_STDERR)
+	$(AT)$(TERM) "docker run $(DOCKER_OPTS_RUN) $(OS_SPECIFIC_RUNOPTS) $(DOCKER_OPTS_USER) $(DOCKER_OPTS_COMMON) $(AIRSTACK_CMD) $(DEBUG_STDERR)"
 
 .PHONY: run-dev run-development
 run-dev: run-development
