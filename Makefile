@@ -19,33 +19,31 @@
 # 4 - very verbose
 DEBUG_LEVEL ?= 2
 
-AIRSTACK_ENV_DEVELOPMENT ?= development
-AIRSTACK_ENV_TEST ?= test
-AIRSTACK_ENV_PRODUCTION ?= production
-
 # Setup output verbosity
 ifeq ($(DEBUG_LEVEL),4)
-	SHELL := /bin/sh -exv
+SHELL := /bin/sh -exv
 else
-	SHELL := /bin/sh -e
+SHELL := /bin/sh -e
 endif
+
 AT := @
 DEBUG_STDOUT := 1>/dev/null
 DEBUG_STDERR := 2>/dev/null
 DEBUG_INFO := >&2
+
 ifeq ($(shell test $(DEBUG_LEVEL) -gt 0 && echo y),y)
-	DEBUG_INFO :=
+DEBUG_INFO :=
 endif
 ifeq ($(shell test $(DEBUG_LEVEL) -gt 1 && echo y),y)
-	DEBUG_STDOUT :=
-	DEBUG_STDERR :=
+DEBUG_STDOUT :=
+DEBUG_STDERR :=
 endif
 ifeq ($(shell test $(DEBUG_LEVEL) -gt 2 && echo y),y)
-	AT :=
-	DEBUG_VERBOSE_FLAG := -v
+AT :=
+DEBUG_VERBOSE_FLAG := -v
 endif
 ifeq ($(shell test $(DEBUG_LEVEL) -gt 3 && echo y),y)
-	DEBUG_VERBOSE_FLAG := -vv
+DEBUG_VERBOSE_FLAG := -vv
 endif
 
 
@@ -68,28 +66,21 @@ AIRSTACK_DIR ?= .airstack
 AIRSTACK_IMAGE_NAME ?= $(shell cat $(CURDIR)/env/AIRSTACK_IMAGE_NAME)
 
 # Current build environment: ex: development, test, production
-AIRSTACK_ENV ?= $(AIRSTACK_ENV_DEVELOPMENT)
+AIRSTACK_ENV ?= development
 
 # Docker image tag; ex: development
 AIRSTACK_IMAGE_TAG ?= $(AIRSTACK_ENV)
 
-# Build file templates located in AIRSTACK_BUILD_TEMPLATES_DIR.
-# Concatenated together on build. Useful for customizing dev vs test vs prod builds.
-#
-# Example:
-# AIRSTACK_BUILD_TEMPLATES_PRODUCTION ?= Dockerfile.base Dockerfile.packages Dockerfile.services
-AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT ?= Dockerfile.development
-AIRSTACK_BUILD_TEMPLATES_PRODUCTION ?= Dockerfile.production
-AIRSTACK_BUILD_TEMPLATES_TEST ?= Dockerfile.test
-
 AIRSTACK_BUILD_TEMPLATES_FILES ?= $(AIRSTACK_BUILD_$(AIRSTACK_ENV))
+
+AIRSTACK_CMD_TEST ?= /command/core-test-runner -f /package/airstack/test/*_spec.lua
 
 
 ################################################################################
 # CONFIG VARS
 ################################################################################
 
-SUBMAKE = $(MAKE) -f $(firstword $(MAKEFILE_LIST))
+AIRSTACK_BASE_IMAGE ?= debian:jessie
 
 AIRSTACK_BOOTSTRAP_HOME ?= $(AIRSTACK_HOME)/package/airstack/bootstrap
 
@@ -102,17 +93,22 @@ AIRSTACK_IGNOREFILE ?= $(CURDIR)/.airstackignore
 AIRSTACK_IMAGE_FULLNAME ?= $(AIRSTACK_IMAGE_NAME):$(AIRSTACK_IMAGE_TAG)
 
 AIRSTACK_RUN_MODE ?= multi
-AIRSTACK_CMD ?= sh -c '{ /etc/runit/2 $(AIRSTACK_RUN_MODE) &}'
-AIRSTACK_SHELL ?= chpst -u $(AIRSTACK_USERNAME) /bin/bash
-AIRSTACK_CMD_CONSOLE ?= sh -c '{ /etc/runit/2 $(AIRSTACK_RUN_MODE) &}; $(AIRSTACK_SHELL)'
 
-AIRSTACK_BASE_IMAGE := debian:jessie
+AIRSTACK_SHELL ?= chpst -u $(AIRSTACK_USERNAME) /bin/bash
+AIRSTACK_CMD ?= sh -c '{ /etc/runit/2 $(AIRSTACK_RUN_MODE) &}'
+AIRSTACK_CMD_CONSOLE ?= sh -c '{ /etc/runit/2 $(AIRSTACK_RUN_MODE) &}; $(AIRSTACK_SHELL)'
 
 DOCKER_OPTS_USER ?=
 DOCKER_OPTS_RUN ?= --detach
 DOCKER_OPTS_RUN_CONSOLE ?= --rm -it
 DOCKER_OPTS_BUILD ?= --rm
 DOCKER_OPTS_COMMON ?= --publish-all --workdir /home/$(AIRSTACK_USERDIR) -e HOME=$(AIRSTACK_USERDIR) $(AIRSTACK_IMAGE_FULLNAME)
+
+ifeq ($(AIRSTACK_NO_CACHE),1)
+DOCKER_OPTS_BUILD += --no-cache
+endif
+
+SUBMAKE := $(MAKE) -f $(firstword $(MAKEFILE_LIST))
 
 # TODO: remove auto mounting of host files; CLI handles mounting
 # DOCKER_OPTS_LINUX ?= --volume $(CURR_DIR)/:/files/host/
@@ -126,9 +122,9 @@ AIRSTACK_BUILD_DIR := $(CURDIR)/$(AIRSTACK_BUILD_DIR)
 
 PLATFORM := $(shell [ $$(uname -s 2>/dev/null) = Darwin ] && echo osx || echo linux)
 ifeq ($(PLATFORM),osx)
-	OS_SPECIFIC_RUNOPTS := $(DOCKER_OPTS_OSX)
+OS_SPECIFIC_RUNOPTS := $(DOCKER_OPTS_OSX)
 else
-	OS_SPECIFIC_RUNOPTS := $(DOCKER_OPTS_LINUX)
+OS_SPECIFIC_RUNOPTS := $(DOCKER_OPTS_LINUX)
 endif
 
 
@@ -151,7 +147,6 @@ init:
 	@# TODO: add call to ~/.airstack/bootstrap/init to populate .airstackignore ???
 	@# TODO: split boot2docker commands into separate init ???
 	@# TODO: add items from ~/.airstack/...bootstrap/templates/gitignore to .gitignore as needed
-	@# TODO: check if @$ is "init" and run `make help`
 ifeq ($(PLATFORM),osx)
 ifneq ($(shell boot2docker status $(DEBUG_STDERR)),running)
 	@# TODO: add check for boot2docker; output url to boot2docker install page if needed
@@ -166,14 +161,6 @@ update:
 	$(AT)test -d $(AIRSTACK_BOOTSTRAP_HOME) || ( echo "missing the bootstrap directory" && exit 1)
 	$(AT)cd $(AIRSTACK_BOOTSTRAP_HOME) && git pull origin master
 
-.PHONY: help
-help:
-	@echo Need to implement help
-	@# @echo USAGE:
-	@# @echo make build-dev
-	@# @echo make build-dev console-dev
-	@# @echo make -j5 build-all
-
 
 ################################################################################
 # BUILD COMMANDS
@@ -181,35 +168,14 @@ help:
 # Commands for building containers.
 ################################################################################
 
-.PHONY: build-all
-build-all: build-development build-test build-production
 
 .PHONY: build
-build: build-development
+build: build-docker
 
 # Rebuild dev image without using the cache
 .PHONY: build-debug
 build-debug:
-	$(SUBMAKE) DOCKER_OPTS_BUILD='--rm --no-cache' build-development
-
-.PHONY: build-dev build-development
-build-dev: build-development
-build-development:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) AIRSTACK_BUILD_TEMPLATES_FILES="$(AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT)" build-image
-
-.PHONY: build-test
-build-test:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_BUILD_TEMPLATES_FILES="$(AIRSTACK_BUILD_TEMPLATES_TEST)" build-image
-
-.PHONY: build-prod build-production
-build-prod: build-production
-build-production:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) AIRSTACK_BUILD_TEMPLATES_FILES="$(AIRSTACK_BUILD_TEMPLATES_PRODUCTION)" build-image
-
-
-################################################################################
-# BUILD HELPERS
-################################################################################
+	$(SUBMAKE) AIRSTACK_NO_CACHE=1 build
 
 .PHONY: build-tarball
 build-tarball:
@@ -228,9 +194,6 @@ build-docker: init build-tarball-docker
 	[BUILT] $(AIRSTACK_IMAGE_FULLNAME)\n\
 	" $(DEBUG_INFO)
 
-.PHONY: build-image
-build-image: build-docker
-
 
 ################################################################################
 # CLEAN COMMANDS
@@ -238,37 +201,23 @@ build-image: build-docker
 # Commands for cleaning up leftover container build artifacts.
 ################################################################################
 
-.PHONY: clean-all
-clean: clean-all
-clean-all: clean-development clean-test clean-production clean-tarballs
+.PHONY: clean
+clean: clean-image clean-tarball
 
-.PHONY: clean-tag
-clean-tag: init
+.PHONY: clean-image
+clean-image: init
 	@echo "Removing Docker image: $(AIRSTACK_IMAGE_FULLNAME)" $(DEBUG_INFO)
 	-$(AT)docker rmi -f $(AIRSTACK_IMAGE_FULLNAME) $(DEBUG_STDERR)
 
-.PHONY: clean-dev clean-development
-clean-dev: clean-development
-clean-development:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) clean-tag
-
-.PHONY: clean-test
-clean-test:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) clean-tag
-
-.PHONY: clean-prod clean-production
-clean-prod: clean-production
-clean-production:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) clean-tag
-
-.PHONY: clean-build-dir
-clean-tarballs:
-	@echo "Removing tarballs: $(AIRSTACK_BUILD_DIR)/*.tar" $(DEBUG_INFO)
+.PHONY: clean-tarball
+clean-tarball:
+	@echo "Removing tarballs: $(AIRSTACK_BUILD_DIR)/*.$(AIRSTACK_ENV).tar" $(DEBUG_INFO)
 ifeq ($(CURDIR),$(findstring $(CURDIR),$(AIRSTACK_BUILD_DIR)))
-	$(AT)rm $(DEBUG_VERBOSE_FLAG) -f $(AIRSTACK_BUILD_DIR)/*.tar $(DEBUG_STDERR)
+	$(AT)rm $(DEBUG_VERBOSE_FLAG) -f $(AIRSTACK_BUILD_DIR)/*.$(AIRSTACK_ENV).tar $(DEBUG_STDERR)
 else
 	@printf "\n[WARNING] Not deleting tarballs. Build dir must be a child of current dir.\n\n"
 endif
+
 
 ################################################################################
 # CONSOLE COMMANDS
@@ -293,20 +242,6 @@ debug: console-debug
 console-debug:
 	$(SUBMAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_SHELL)" console
 
-.PHONY: console-dev console-development
-console-dev: console-development
-console-development:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) console
-
-.PHONY: console-test
-console-test:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) console
-
-.PHONY: console-prod console-production
-console-prod: console-production
-console-production:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) console
-
 .PHONY: console-single
 console-single:
 	$(SUBMAKE) AIRSTACK_RUN_MODE=single console
@@ -325,20 +260,6 @@ console-single:
 run: init
 	$(AT)$(TERM) "docker run $(DOCKER_OPTS_RUN) $(OS_SPECIFIC_RUNOPTS) $(DOCKER_OPTS_USER) $(DOCKER_OPTS_COMMON) $(AIRSTACK_CMD) $(DEBUG_STDERR)"
 
-.PHONY: run-dev run-development
-run-dev: run-development
-run-development:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) run
-
-.PHONY: run-test
-run-test:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) run
-
-.PHONY: run-prod run-production
-run-prod: run-production
-run-production:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) run
-
 .PHONY: run-base
 run-base: init
 	$(AT)docker run --rm -it $(AIRSTACK_BASE_IMAGE) /bin/bash $(DEBUG_STDERR)
@@ -348,13 +269,10 @@ run-base: init
 # TEST COMMANDS
 ################################################################################
 
-# .PHONY: test-runner
-# test-runner:
-# 	$(SUBMAKE) AIRSTACK_CMD_CONSOLE="/command/core-test-runner -f /package/airstack/test/*_spec.lua" console
-
 .PHONY: test
 test:
-	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_CMD_CONSOLE="/command/core-test-runner -f /package/airstack/test/*_spec.lua" console
+	$(SUBMAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_CMD_TEST)" console
+
 
 ################################################################################
 # DOCKER COMMANDS
