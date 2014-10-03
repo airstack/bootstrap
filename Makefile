@@ -82,12 +82,14 @@ AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT ?= Dockerfile.development
 AIRSTACK_BUILD_TEMPLATES_PRODUCTION ?= Dockerfile.production
 AIRSTACK_BUILD_TEMPLATES_TEST ?= Dockerfile.test
 
-AIRSTACK_BUILD_TEMPLATES ?= $(AIRSTACK_BUILD_$(AIRSTACK_ENV))
+AIRSTACK_BUILD_TEMPLATES_FILES ?= $(AIRSTACK_BUILD_$(AIRSTACK_ENV))
 
 
 ################################################################################
 # CONFIG VARS
 ################################################################################
+
+SUBMAKE = $(MAKE) -f $(firstword $(MAKEFILE_LIST))
 
 AIRSTACK_BOOTSTRAP_HOME ?= $(AIRSTACK_HOME)/package/airstack/bootstrap
 
@@ -143,7 +145,7 @@ all: build-all
 init:
 	@# TODO: move all file related tasks to non PHONY tasks; no need to test if files exists since that's what make does by default
 	$(AT)test -d $(AIRSTACK_BUILD_TEMPLATES_DIR) || mkdir -vp $(AIRSTACK_BUILD_TEMPLATES_DIR)
-	$(AT)$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),$(shell test -e $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) || touch $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) ))
+	$(AT)$(foreach var,$(AIRSTACK_BUILD_TEMPLATES_FILES),$(shell test -e $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) || touch $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) ))
 	$(AT)test -d $(AIRSTACK_BUILD_DIR) || mkdir -vp $(AIRSTACK_BUILD_DIR)
 	$(AT)test -f $(AIRSTACK_IGNOREFILE) || cp $(AIRSTACK_BOOTSTRAP_HOME)/templates/airstackignore $(AIRSTACK_IGNOREFILE) $(DEBUG_STDOUT) $(DEBUG_STDERR)
 	@# TODO: add call to ~/.airstack/bootstrap/init to populate .airstackignore ???
@@ -188,21 +190,21 @@ build: build-development
 # Rebuild dev image without using the cache
 .PHONY: build-debug
 build-debug:
-	$(AT)$(MAKE) DOCKER_OPTS_BUILD='--rm --no-cache' build-development
+	$(SUBMAKE) DOCKER_OPTS_BUILD='--rm --no-cache' build-development
 
 .PHONY: build-dev build-development
 build-dev: build-development
 build-development:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT)" build-image
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) AIRSTACK_BUILD_TEMPLATES_FILES="$(AIRSTACK_BUILD_TEMPLATES_DEVELOPMENT)" build-image
 
 .PHONY: build-test
 build-test:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_TEST)" build-image
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_BUILD_TEMPLATES_FILES="$(AIRSTACK_BUILD_TEMPLATES_TEST)" build-image
 
 .PHONY: build-prod build-production
 build-prod: build-production
 build-production:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) AIRSTACK_BUILD_TEMPLATES="$(AIRSTACK_BUILD_TEMPLATES_PRODUCTION)" build-image
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) AIRSTACK_BUILD_TEMPLATES_FILES="$(AIRSTACK_BUILD_TEMPLATES_PRODUCTION)" build-image
 
 
 ################################################################################
@@ -216,7 +218,7 @@ build-tarball:
 .PHONY: build-tarball-docker
 build-tarball-docker: build-tarball
 	$(AT)> $(AIRSTACK_BUILD_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME)
-	$(AT)$(foreach var,$(AIRSTACK_BUILD_TEMPLATES),cat $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) >> $(AIRSTACK_BUILD_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME);)
+	$(AT)$(foreach var,$(AIRSTACK_BUILD_TEMPLATES_FILES),cat $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) >> $(AIRSTACK_BUILD_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME);)
 	$(AT)tar $(DEBUG_VERBOSE_FLAG) -C $(AIRSTACK_BUILD_DIR) --append -s /Dockerfile.$(IMAGE_TAG_FILENAME)/Dockerfile/ --file=$(AIRSTACK_BUILD_DIR)/build.$(IMAGE_TAG_FILENAME).tar Dockerfile.$(IMAGE_TAG_FILENAME) $(DEBUG_STDERR)
 
 .PHONY: build-docker
@@ -248,16 +250,16 @@ clean-tag: init
 .PHONY: clean-dev clean-development
 clean-dev: clean-development
 clean-development:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) clean-tag
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) clean-tag
 
 .PHONY: clean-test
 clean-test:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) clean-tag
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) clean-tag
 
 .PHONY: clean-prod clean-production
 clean-prod: clean-production
 clean-production:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) clean-tag
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) clean-tag
 
 .PHONY: clean-build-dir
 clean-tarballs:
@@ -283,31 +285,31 @@ endif
 
 .PHONY: console
 console:
-	$(AT)$(MAKE) DOCKER_OPTS_RUN="$(DOCKER_OPTS_RUN_CONSOLE)" AIRSTACK_CMD="$(AIRSTACK_CMD_CONSOLE)" run
+	$(SUBMAKE) DOCKER_OPTS_RUN="$(DOCKER_OPTS_RUN_CONSOLE)" AIRSTACK_CMD="$(AIRSTACK_CMD_CONSOLE)" run
 
 # Run console without starting any services
 .PHONY: debug console-debug
 debug: console-debug
 console-debug:
-	$(AT)$(MAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_SHELL)" console
+	$(SUBMAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_SHELL)" console
 
 .PHONY: console-dev console-development
 console-dev: console-development
 console-development:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) console
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) console
 
 .PHONY: console-test
 console-test:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) console
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) console
 
 .PHONY: console-prod console-production
 console-prod: console-production
 console-production:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) console
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) console
 
 .PHONY: console-single
 console-single:
-	$(AT)$(MAKE) AIRSTACK_RUN_MODE=single console
+	$(SUBMAKE) AIRSTACK_RUN_MODE=single console
 
 
 ################################################################################
@@ -326,16 +328,16 @@ run: init
 .PHONY: run-dev run-development
 run-dev: run-development
 run-development:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) run
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_DEVELOPMENT) run
 
 .PHONY: run-test
 run-test:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) run
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) run
 
 .PHONY: run-prod run-production
 run-prod: run-production
 run-production:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) run
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_PRODUCTION) run
 
 .PHONY: run-base
 run-base: init
@@ -348,11 +350,11 @@ run-base: init
 
 # .PHONY: test-runner
 # test-runner:
-# 	$(AT)$(MAKE) AIRSTACK_CMD_CONSOLE="/command/core-test-runner -f /package/airstack/test/*_spec.lua" console
+# 	$(SUBMAKE) AIRSTACK_CMD_CONSOLE="/command/core-test-runner -f /package/airstack/test/*_spec.lua" console
 
 .PHONY: test
 test:
-	$(AT)$(MAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_CMD_CONSOLE="/command/core-test-runner -f /package/airstack/test/*_spec.lua" console
+	$(SUBMAKE) AIRSTACK_ENV=$(AIRSTACK_ENV_TEST) AIRSTACK_CMD_CONSOLE="/command/core-test-runner -f /package/airstack/test/*_spec.lua" console
 
 ################################################################################
 # DOCKER COMMANDS
