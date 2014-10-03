@@ -3,15 +3,38 @@
 # TODO: make this interactive rather than automatically installing stuff
 
 : ${AIRSTACK_HOME:=~/.airstack}
+: ${AIRSTACK_BIN:=/usr/local/bin/airstack}
 
-install() {
-  local cwd="$PWD"
+install_bootstrap() {
   mkdir -vp $AIRSTACK_HOME/package/airstack
   cd $AIRSTACK_HOME/package/airstack
   git clone https://github.com/airstack/bootstrap.git
-  cd bootstrap
-  cd $cwd
-  echo Airstack installed to $AIRSTACK_HOME
 }
 
-install
+install_cli() {
+  mkdir -vp $AIRSTACK_HOME/package/airstack
+  cd $AIRSTACK_HOME/package/airstack
+  git clone https://github.com/airstack/cli.git
+  cd cli
+  ../../nodejs/node/bin/npm install
+  ln -s $AIRSTACK_HOME/package/airstack/cli/bin/airstack $AIRSTACK_BIN
+}
+
+install_node() {
+  mkdir -vp $AIRSTACK_HOME/package/nodejs
+  cd $AIRSTACK_HOME/package/nodejs
+  curl -o node-v0.10.32-darwin-x64.tar.gz http://nodejs.org/dist/v0.10.32/node-v0.10.32-darwin-x64.tar.gz
+  tar -xzf node-v0.10.32-darwin-x64.tar.gz
+  ln -s node-v0.10.32-darwin-x64 node
+  rm node-v0.10.32-darwin-x64.tar.gz
+}
+
+main() {
+  install_node
+  install_bootstrap
+  install_cli
+  printf "\n\n[SUCCESS] installed to $AIRSTACK_HOME\n"
+  which airstack
+}
+
+main
