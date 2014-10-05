@@ -1,3 +1,4 @@
 
 # AIRSTACK
-# Nothing to ignore just yet
+.airstack/cache
+*.tar
