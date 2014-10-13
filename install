@@ -6,31 +6,54 @@
 : ${AIRSTACK_BIN:=/usr/local/bin/airstack}
 
 install_bootstrap() {
+  local pkg_name; pkg_name=bootstrap
   mkdir -vp $AIRSTACK_HOME/package/airstack
   cd $AIRSTACK_HOME/package/airstack
-  git clone https://github.com/airstack/bootstrap.git
+  test -d $pkg_name/.git && git -C ./$pkg_name pull \
+    || git clone https://github.com/airstack/$pkg_name.git
 }
 
 install_cli() {
+  local pkg_name; pkg_name=cli
   mkdir -vp $AIRSTACK_HOME/package/airstack
   cd $AIRSTACK_HOME/package/airstack
-  git clone https://github.com/airstack/cli.git
-  cd cli
+  test -d $pkg_name/.git && git -C ./$pkg_name pull \
+    || git clone https://github.com/airstack/$pkg_name.git
+  cd $pkg_name
   ../../nodejs/node/bin/npm install
-  ln -s $AIRSTACK_HOME/package/airstack/cli/bin/airstack $AIRSTACK_BIN
+  #TODO backup if exists
+  ln -sf $AIRSTACK_HOME/package/airstack/cli/bin/airstack $AIRSTACK_BIN
 }
 
 install_node() {
   mkdir -vp $AIRSTACK_HOME/package/nodejs
   cd $AIRSTACK_HOME/package/nodejs
-  curl -o node-v0.10.32-darwin-x64.tar.gz http://nodejs.org/dist/v0.10.32/node-v0.10.32-darwin-x64.tar.gz
-  tar -xzf node-v0.10.32-darwin-x64.tar.gz
-  ln -s node-v0.10.32-darwin-x64 node
-  rm node-v0.10.32-darwin-x64.tar.gz
+  local pkg_name; pkg_name="node-v0.10.32-darwin-x64.tar.gz"
+  local dir_name; dir_name=`basename -s .tar.gz $pkg_name`
+  test -d $dir_name && rm -rf $dir_name
+  test -e $pkg_name && rm -f $pkg_name
+  curl -SLo $pkg_name http://nodejs.org/dist/v0.10.32/$pkg_name
+  tar -xzf $pkg_name
+  ln -sf $dir_name node
+  rm $pkg_name
+}
+
+install_terraform() {
+  mkdir -vp $AIRSTACK_HOME/package/terraform
+  cd $AIRSTACK_HOME/package/terraform
+  local pkg_name; pkg_name="terraform_0.2.2_darwin_amd64.zip"
+  local dir_name; dir_name=`basename -s .zip $pkg_name`
+  test -d $dir_name && rm -rf $dir_name
+  test -e $pkg_name && rm -f $pkg_name
+  curl -SLo $pkg_name https://dl.bintray.com/mitchellh/terraform/$pkg_name
+  unzip -d $dir_name $pkg_name
+  ln -sf $dir_name terraform
+  rm $pkg_name
 }
 
 main() {
   install_node
+  install_terraform
   install_bootstrap
   install_cli
   printf "\n\n[SUCCESS] installed to $AIRSTACK_HOME\n"
