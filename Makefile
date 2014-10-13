@@ -73,7 +73,7 @@ AIRSTACK_IMAGE_TAG ?= $(AIRSTACK_ENV)
 
 AIRSTACK_BUILD_TEMPLATES_FILES ?= $(AIRSTACK_BUILD_$(AIRSTACK_ENV))
 
-AIRSTACK_CMD_TEST ?= /command/core-test-runner -f /package/airstack/test/*_spec.lua
+AIRSTACK_CMD_TEST ?= /command/core-test-runner -f /package/airstack/test/\*_spec.lua
 
 
 ################################################################################
