@@ -234,15 +234,15 @@ endif
 console:
 	$(SUBMAKE) DOCKER_OPTS_RUN="$(DOCKER_OPTS_RUN_CONSOLE)" AIRSTACK_CMD="$(AIRSTACK_CMD_CONSOLE)" run
 
-# Run console without starting any services
-.PHONY: debug console-debug
-debug: console-debug
-console-debug:
-	$(SUBMAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_SHELL)" console
-
+# Run console in single mode
 .PHONY: console-single
 console-single:
 	$(SUBMAKE) AIRSTACK_RUN_MODE=single console
+
+# Run console without starting any services
+.PHONY: shell
+shell:
+	$(SUBMAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_SHELL)" console
 
 
 ################################################################################
