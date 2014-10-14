@@ -73,8 +73,6 @@ AIRSTACK_IMAGE_TAG ?= $(AIRSTACK_ENV)
 
 AIRSTACK_BUILD_TEMPLATES_FILES ?= $(AIRSTACK_BUILD_$(AIRSTACK_ENV))
 
-AIRSTACK_CMD_TEST ?= /command/core-test-runner -f /package/airstack/test/\*_spec.lua
-
 
 ################################################################################
 # CONFIG VARS
@@ -264,14 +262,6 @@ run: init
 run-base: init
 	$(AT)docker run --rm -it $(AIRSTACK_BASE_IMAGE) /bin/bash $(DEBUG_STDERR)
 
-
-################################################################################
-# TEST COMMANDS
-################################################################################
-
-.PHONY: test
-test:
-	$(SUBMAKE) AIRSTACK_CMD_CONSOLE="$(AIRSTACK_CMD_TEST)" console
 
 
 ################################################################################
