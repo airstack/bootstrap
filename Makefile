@@ -151,7 +151,9 @@ ifneq ($(shell boot2docker status $(DEBUG_STDERR)),running)
 	$(AT)boot2docker $(DEBUG_VERBOSE_FLAG) up $(DEBUG_STDOUT) $(DEBUG_STDERR)
 	$(AT)sleep 1 # sleep to prevent incorrect results from boot2docker ip
 endif
-	$(eval export DOCKER_HOST ?= tcp://$(shell boot2docker ip 2>/dev/null):2375)
+	$(eval export DOCKER_HOST ?= tcp://$(shell boot2docker ip 2>/dev/null):2376)
+	$(eval export DOCKER_CERT_PATH ?= $(shell echo $$HOME)/.boot2docker/certs/boot2docker-vm)
+	$(eval export DOCKER_TLS_VERIFY ?= 1)
 endif
 
 .PHONY: update
