@@ -28,11 +28,12 @@ install_cli() {
 install_node() {
   mkdir -vp $AIRSTACK_HOME/package/nodejs
   cd $AIRSTACK_HOME/package/nodejs
-  local pkg_name; pkg_name="node-v0.10.32-darwin-x64.tar.gz"
+  local pkg_name; pkg_name="node-v0.11.14-darwin-x64.tar.gz"
   local dir_name; dir_name=`basename -s .tar.gz $pkg_name`
   test -d $dir_name && rm -rf $dir_name
   test -e $pkg_name && rm -f $pkg_name
-  curl -SLo $pkg_name http://nodejs.org/dist/v0.10.32/$pkg_name
+  curl -SLo $pkg_name http://nodejs.org/dist/v0.11.14/$pkg_name
+  # TODO: verify sha256sum 074669d2f3d8419496076c55c2743389538996a90e87277ea5bf032f885877ad
   tar -xzf $pkg_name
   ln -sf $dir_name node
   rm $pkg_name
