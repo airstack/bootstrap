@@ -185,6 +185,7 @@ build-tarball:
 build-tarball-docker: build-tarball
 	$(AT)> $(AIRSTACK_BUILD_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME)
 	$(AT)$(foreach var,$(AIRSTACK_BUILD_TEMPLATES_FILES),cat $(AIRSTACK_BUILD_TEMPLATES_DIR)/$(var) >> $(AIRSTACK_BUILD_DIR)/Dockerfile.$(IMAGE_TAG_FILENAME);)
+	# -s /search/replace/ is specific to bsdtar, use --transform for GNU tar
 	$(AT)tar $(DEBUG_VERBOSE_FLAG) -C $(AIRSTACK_BUILD_DIR) --append -s /Dockerfile.$(IMAGE_TAG_FILENAME)/Dockerfile/ --file=$(AIRSTACK_BUILD_DIR)/build.$(IMAGE_TAG_FILENAME).tar Dockerfile.$(IMAGE_TAG_FILENAME) $(DEBUG_STDERR)
 
 .PHONY: build-docker
